@@ -2,7 +2,7 @@ library(shiny)
 library(readxl)
 library(ggplot2)
 library(dplyr)
-library(gridExtra) # Para combinar múltiples gráficos
+library(gridExtra)
 
 ui <- fluidPage(
   titlePanel("Análisis T-Test y ANOVA Automático"),
@@ -85,7 +85,7 @@ server <- function(input, output, session) {
     })
   })
   
-  # Detectar automáticamente variables numéricas y categóricas
+  # D_a d VAR Y CAT
   columnas_numericas <- reactive({
     req(datos())
     sapply(datos(), is.numeric)
@@ -115,7 +115,7 @@ server <- function(input, output, session) {
     df <- datos()
     grupo_vars <- input$var_grup
     
-    # Verificar si es un caso de t-test (1 variable independiente con 2 niveles)
+    # VERIFI T.TEST
     es_ttest <- FALSE
     if (length(grupo_vars) == 1) {
       if (length(unique(df[[grupo_vars[1]]])) == 2) {
@@ -123,9 +123,9 @@ server <- function(input, output, session) {
       }
     }
     
-    # Opciones de gráficos según el tipo de prueba
+    # GRAPH
     if (es_ttest) {
-      # Para t-test, incluir opción de campana de Gauss
+
       selectInput("tipo_grafico", "Tipo de visualización:",
                   choices = c("Boxplot" = "boxplot",
                               "Campana de Gauss con regiones" = "gauss",
@@ -135,7 +135,7 @@ server <- function(input, output, session) {
                               "Dispersión" = "scatter",
                               "Todos" = "todos"))
     } else if (length(grupo_vars) >= 2) {
-      # Para ANOVA con 2+ factores, incluir opción de interacción
+      # GRAPH ANOAV
       selectInput("tipo_grafico", "Tipo de visualización:",
                   choices = c("Boxplot" = "boxplot",
                               "Interacción" = "interaccion",
@@ -147,7 +147,7 @@ server <- function(input, output, session) {
     } 
   })
   crear_interaccion <- function(df, var_dep, var_grup) {
-    # Asegurarse de que hay exactamente dos variables de grupo
+    #SI 2 GROUP
     if (length(var_grup) != 2) {
       return(ggplot() + 
                annotate("text", x = 0.5, y = 0.5, 
@@ -155,14 +155,14 @@ server <- function(input, output, session) {
                theme_void())
     }
     
-    # Calcular medias por grupos
+    # MEAN
     medias <- df %>%
       group_by(across(all_of(var_grup))) %>%
       summarise(Media = mean(.data[[var_dep]], na.rm = TRUE),
                 EE = sd(.data[[var_dep]], na.rm = TRUE) / sqrt(n()),
                 .groups = "drop")
     
-    # Crear gráfico de interacción
+    # GAPH
     ggplot(medias, aes_string(x = var_grup[1], y = "Media", color = var_grup[2], group = var_grup[2])) +
       geom_line(size = 1) +
       geom_point(size = 3) +
@@ -175,7 +175,7 @@ server <- function(input, output, session) {
             plot.title = element_text(hjust = 0.5, face = "bold"),
             plot.subtitle = element_text(hjust = 0.5))
   }
-  # Análisis estadístico
+  # ANALISIS
   resultado_analisis <- reactive({
     req(datos(), input$var_dep, input$var_grup)
     
@@ -199,7 +199,7 @@ server <- function(input, output, session) {
     resultado$alpha <- input$alpha
     
     if (length(grupo_vars) == 1 && length(unique(df[[grupo_vars[1]]])) == 2) {
-      # Realizar prueba t
+      # R prueba t
       resultado$tipo <- "t-test"
       resultado$test <- t.test(formula, data = df)
       resultado$p_valor <- resultado$test$p.value
@@ -209,13 +209,13 @@ server <- function(input, output, session) {
         paste0("✅ No se rechaza la hipótesis nula con α = ", resultado$alpha, ": no hay diferencia significativa.")
       }
       
-      # Detalles para graficar la distribución t
+       
       resultado$grados_libertad <- resultado$test$parameter
       resultado$estadistico <- resultado$test$statistic
       resultado$valor_critico <- qt(1 - resultado$alpha/2, df = resultado$grados_libertad)
       
     } else {
-      # Realizar ANOVA
+      # R ANOVA
       resultado$tipo <- "anova"
       resultado$modelo <- aov(formula, data = df)
       resultado$test <- summary(resultado$modelo)
@@ -226,7 +226,6 @@ server <- function(input, output, session) {
         paste0("✅ No se rechaza la hipótesis nula con α = ", resultado$alpha, ": no hay diferencias significativas entre grupos.")
       }
       
-      # Detalles para graficar la distribución F
       resultado$grado_libertad_1 <- resultado$test[[1]]["Df"][1,1]
       resultado$grado_libertad_2 <- resultado$test[[1]]["Df"][2,1]
       resultado$estadistico <- resultado$test[[1]]["F value"][1,1]
@@ -335,7 +334,7 @@ server <- function(input, output, session) {
     }
   })
   
-  # Funciones para generar diferentes tipos de gráficos
+  # Funciones
   crear_boxplot <- function(df, var_dep, var_grup) {
     if (length(var_grup) == 1) {
       ggplot(df, aes_string(x = var_grup[1], y = var_dep, fill = var_grup[1])) +
@@ -351,7 +350,7 @@ server <- function(input, output, session) {
         theme_minimal() +
         labs(title = paste("Boxplot de", var_dep, "por", paste(var_grup, collapse=" y ")))
     } else {
-      # Para más de dos variables, usamos facetas
+     # 2 VAR
       ggplot(df, aes_string(x = var_grup[1], y = var_dep, fill = var_grup[2])) +
         geom_boxplot() +
         facet_wrap(as.formula(paste("~", paste(var_grup[-(1:2)], collapse = "+")))) +
@@ -367,7 +366,7 @@ server <- function(input, output, session) {
         theme_minimal() +
         labs(title = paste("Densidad de", var_dep, "por", var_grup[1]))
     } else {
-      # Para múltiples variables, combinamos las primeras dos y facetamos por el resto
+      #PARA +2
       df$grupo_combinado <- interaction(df[var_grup[1:min(2, length(var_grup))]])
       
       grafico <- ggplot(df, aes_string(x = var_dep, fill = "grupo_combinado")) +
@@ -383,22 +382,17 @@ server <- function(input, output, session) {
     }
   }
   
-  # Nueva función para crear la campana de Gauss con regiones de aceptación/rechazo
+  # GAUSS
   crear_campana_gauss <- function(res) {
     if (res$tipo == "t-test") {
-      # Distribución t de Student
+
       df <- res$grados_libertad
       t_stat <- res$estadistico
       alpha <- res$alpha
-      
-      # Valores críticos
       t_critical <- qt(1 - alpha/2, df)
-      
-      # Crear datos para la curva
       x <- seq(-4, 4, length.out = 1000)
       y <- dt(x, df)
       
-      # Datos para las regiones sombreadas
       reject_region1 <- data.frame(
         x = seq(-4, -t_critical, length.out = 100),
         y = dt(seq(-4, -t_critical, length.out = 100), df)
@@ -410,19 +404,13 @@ server <- function(input, output, session) {
       )
       
       p <- ggplot() +
-        # Añadir la curva t
         geom_line(data = data.frame(x = x, y = y), aes(x = x, y = y), linewidth = 1) +
-        
-        # Añadir regiones de rechazo
         geom_area(data = reject_region1, aes(x = x, y = y), fill = "red", alpha = 0.5) +
         geom_area(data = reject_region2, aes(x = x, y = y), fill = "red", alpha = 0.5) +
-        
-        # Añadir líneas verticales para los valores críticos y t calculado
         geom_vline(xintercept = -t_critical, linetype = "dashed", color = "darkred") +
         geom_vline(xintercept = t_critical, linetype = "dashed", color = "darkred") +
         geom_vline(xintercept = as.numeric(t_stat), linetype = "solid", color = "blue", linewidth = 1) +
         
-        # Añadir etiquetas
         annotate("text", x = -t_critical - 0.5, y = max(y) * 0.8, 
                  label = paste("t crítico =", round(-t_critical, 3)), color = "darkred") +
         annotate("text", x = t_critical + 0.5, y = max(y) * 0.8, 
@@ -430,7 +418,7 @@ server <- function(input, output, session) {
         annotate("text", x = as.numeric(t_stat), y = max(y) * 0.5, 
                  label = paste("t calculado =", round(as.numeric(t_stat), 3)), color = "blue") +
         
-        # Añadir leyenda para las regiones
+     
         annotate("text", x = 0, y = max(y) * 0.9, 
                  label = paste("Región de aceptación\n(1-α) =", 1-alpha), color = "darkgreen") +
         annotate("text", x = -3, y = max(y) * 0.3, 
@@ -438,18 +426,15 @@ server <- function(input, output, session) {
         annotate("text", x = 3, y = max(y) * 0.3, 
                  label = paste("Región de rechazo\nα/2 =", alpha/2), color = "darkred") +
         
-        # Añadir título y etiquetas
         labs(title = paste("Distribución t de Student (gl =", round(df, 2), ")"),
              subtitle = paste("Prueba de hipótesis con α =", alpha, 
                               "\nValor p =", round(res$p_valor, 4)),
              x = "Valor t", y = "Densidad") +
         
-        # Mejorar tema
         theme_minimal() +
         theme(plot.title = element_text(hjust = 0.5, face = "bold"),
               plot.subtitle = element_text(hjust = 0.5))
       
-      # Añadir conclusión
       if (abs(as.numeric(t_stat)) > t_critical) {
         p <- p + annotate("text", x = 0, y = max(y) * 0.1, 
                           label = "❌ Se rechaza la hipótesis nula", 
@@ -716,9 +701,7 @@ server <- function(input, output, session) {
     datos()
   })
   
-  # Generación de PDF
-  
+
 }
 
-# Ejecutar la aplicación
 shinyApp(ui = ui, server = server)
